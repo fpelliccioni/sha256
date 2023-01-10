@@ -1,0 +1,22 @@
+Golang code
+    https://github.com/minio/sha256-simd
+
+Intel code
+    https://github.com/intel/intel-ipsec-mb
+
+Existing (maybe slow C++ lib)
+    https://create.stephan-brumme.com/hash-library/
+
+Neon
+    https://github.com/christophe-lyon/arm-neon-tests
+
+    https://github.com/intel/ARM_NEON_2_x86_SSE
+
+
+
+Agner Fog's Vector Class Library
+    https://github.com/vectorclass/version2
+
+
+Google Highway
+    https://github.com/google/highway
