@@ -1,3 +1,6 @@
+sha256-animation
+    https://github.com/in3rsha/sha256-animation
+
 Golang code
     https://github.com/minio/sha256-simd
 
@@ -14,9 +17,10 @@ Neon
 
 
 
+
+SIMD Libraries ------------------------------------------------------------------
 Agner Fog's Vector Class Library
     https://github.com/vectorclass/version2
-
 
 Google Highway
     https://github.com/google/highway
