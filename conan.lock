@@ -6,11 +6,18 @@
     "requires": [
      "1"
     ],
+    "build_requires": [
+     "2"
+    ],
     "path": "conanfile.py",
     "context": "host"
    },
    "1": {
-    "ref": "jfalcou-eve/v2022.09.1#0",
+    "ref": "jfalcou-eve/v2022.09.1#3ea0e77113be978b325fae8b61516693",
+    "context": "host"
+   },
+   "2": {
+    "ref": "catch2/2.13.9#727819d4ccac401529cd082163cb26b4",
     "context": "host"
    }
   },

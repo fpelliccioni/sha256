@@ -12,10 +12,12 @@ class Sha256Conan(ConanFile):
         if self.info.settings.compiler.cppstd:
             check_min_cppstd(self, "20")
 
+    def build_requirements(self):
+        self.test_requires("catch2/2.13.9")
+
     def requirements(self):
         self.requires("jfalcou-eve/v2022.09.1")
         # self.requires("cppfront/cci.20221024")
-
 
     def layout(self):
         cmake_layout(self)
