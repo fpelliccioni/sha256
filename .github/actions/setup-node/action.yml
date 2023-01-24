@@ -1,5 +1,5 @@
 name: "Setup Node"
-description: "Install and configure the conan client for use in the sha256 project's back-end"
+description: "Install and configure the conan client for use in the sha256 project"
 inputs:
   node-version:
     description: "The node version to install and cache against"

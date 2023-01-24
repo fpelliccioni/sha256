@@ -1,5 +1,5 @@
 name: "Setup Conan"
-description: "Install and configure the conan client for use in the sha256 project's back-end"
+description: "Install and configure the conan client for use in the sha256 project"
 runs:
   using: "composite"
   steps:
@@ -7,5 +7,5 @@ runs:
       shell: bash
     - run: conan config init --force
       shell: bash
-    - run: conan config install -t dir backend/.conan
+    - run: conan config install -t dir .conan
       shell: bash

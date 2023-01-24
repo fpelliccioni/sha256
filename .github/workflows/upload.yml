@@ -44,12 +44,12 @@ jobs:
           github-ref: ${{ github.ref }}
           unique-alt-id: ${{ github.sha }}
 
-  build-docker-image:
+  build-base-docker-image:
     runs-on: ubuntu-latest
     outputs:
-      name: docker.pkg.github.com/${{ github.repository }}/build-alpine:${{ steps.version.outputs.version }}
+      name: docker.pkg.github.com/${{ github.repository }}/sha256-build-alpine:${{ steps.version.outputs.version }}
     env:
-      name: docker.pkg.github.com/${{ github.repository }}/build-alpine
+      name: docker.pkg.github.com/${{ github.repository }}/sha256-build-alpine
     steps:
       - uses: actions/checkout@v3
       - id: version
@@ -70,11 +70,11 @@ jobs:
         run: docker push ${{ env.name }}:${{ steps.version.outputs.version }}
 
   calc-deps:
-    needs: [build-docker-image, check]
+    needs: [build-base-docker-image, check]
     if: needs.check.outputs.permitted == 'true'
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-docker-image.outputs.name }}
+      image: ${{ needs.build-base-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -109,10 +109,10 @@ jobs:
           echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
 
   build-deps:
-    needs: [build-docker-image, calc-deps]
+    needs: [build-base-docker-image, calc-deps]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-docker-image.outputs.name }}
+      image: ${{ needs.build-base-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -138,10 +138,10 @@ jobs:
       - run: exit 0
 
   alpine-backend:
-    needs: [build-docker-image, build-deps]
+    needs: [build-base-docker-image, build-deps]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-docker-image.outputs.name }}
+      image: ${{ needs.build-base-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -170,10 +170,10 @@ jobs:
         run: conan upload "*" --all -r $CONAN_REMOTE -c
 
   backend-image:
-    needs: [setup, build-docker-image, alpine-backend]
+    needs: [setup, build-base-docker-image, alpine-backend]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-docker-image.outputs.name }}
+      image: ${{ needs.build-base-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
