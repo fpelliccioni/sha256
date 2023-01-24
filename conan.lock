@@ -2,7 +2,7 @@
  "graph_lock": {
   "nodes": {
    "0": {
-    "ref": "sha256/0.1",
+    "ref": "sha256/None",
     "requires": [
      "1"
     ],

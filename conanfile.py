@@ -4,7 +4,6 @@ from conan.tools.build import check_min_cppstd
 
 class Sha256Conan(ConanFile):
     name = "sha256"
-    version = "0.1"
     settings = "os", "compiler", "build_type", "arch"
 
     exports_sources = "CMakeLists.txt", "src/*", "include/*"
