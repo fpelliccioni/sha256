@@ -58,6 +58,7 @@ jobs:
         with:
           registry: docker.pkg.github.com
           username: ${{ github.repository_owner }}
+          # password: ${{ secrets.GIT_DOCKER_PAT }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: check
         name: check existence
