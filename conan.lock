@@ -1,0 +1,20 @@
+{
+ "graph_lock": {
+  "nodes": {
+   "0": {
+    "ref": "sha256/0.1",
+    "requires": [
+     "1"
+    ],
+    "path": "conanfile.py",
+    "context": "host"
+   },
+   "1": {
+    "ref": "jfalcou-eve/v2022.09.1#0",
+    "context": "host"
+   }
+  },
+  "revisions_enabled": true
+ },
+ "version": "0.4"
+}
