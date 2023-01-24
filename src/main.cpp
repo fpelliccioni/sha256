@@ -1,83 +1,121 @@
-//==================================================================================================
 /*
-  EVE - Expressive Vector Engine
-  Copyright : EVE Project Contributors
-  SPDX-License-Identifier: BSL-1.0
+
+MIT License
+
+Copyright (c) 2020 Chris Mc prince.chrismc@gmail.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 */
-//==================================================================================================
 
-//! [scalar-function]
-#include <cmath>
+#include "handlers/serve_files.hpp"
+#include "handlers/user_routes.hpp"
+#include "handlers/web_app.hpp"
+#include "utility/app_args.hpp"
+#include "utility/server_logger.hpp"
 
-float rho(float x, float y)
-{
-  return std::sqrt(x * x + y * y);
-}
+#ifdef _WIN32
+#include <sdkddkver.h>
+#endif
 
-float theta(float x, float y)
-{
-  return std::atan2(y, x);
-}
-//! [scalar-function]
+#include <restinio/all.hpp>
+#include <restinio/tls.hpp>
 
-//! [simd-function]
-#include <eve/wide.hpp>
-#include <eve/module/core.hpp>
-#include <eve/module/math.hpp>
-
-eve::wide<float> rho(eve::wide<float> x, eve::wide<float> y)
-{
-  return  eve::sqrt(x * x + y * y);
-}
-
-eve::wide<float> theta(eve::wide<float> x, eve::wide<float> y)
-{
-  return eve::atan2(y, x);
-}
-//! [simd-function]
-
-
-//! [hypot-variant]
-#include <eve/wide.hpp>
-#include <eve/module/math.hpp>
-
-eve::wide<float> better_rho(eve::wide<float> x, eve::wide<float> y) {
-  return  eve::hypot(x, y);
-}
-//! [hypot-variant]
-
-//! [simd-test]
 #include <iostream>
+#include <map>
 
-void check_polar() {
-  eve::wide<float> x1{4};
-  eve::wide<float> y1{[](auto i, auto ) { return 1.5f*(i+1); }};
+using namespace std::chrono_literals;  // NOLINT(google-build-using-namespace)
+using user_database = handler::user::database;
 
-  std::cout << x1 << " " << y1 << " => " << rho(x1,y1) << "\n";
+auto server_handler(const std::string &root_dir, user_database &db) {
+  std::string server_root_dir;
 
-  float data[] = {1.5f, 3, 4.5f, 6, 7.5f, 9, 10.5f, 12, 13.5, 15, 16.5, 18, 19.5, 21, 22.5, 24};
-  eve::wide<float> y2{&data[0]};
+  if (root_dir.empty()) {
+    server_root_dir = "./";
+  } else if (root_dir.back() != '/' && root_dir.back() != '\\') {
+    server_root_dir = root_dir + '/';
+  } else {
+    server_root_dir = root_dir;
+  }
 
-  std::cout << x1 << " " << y2 << " => " << theta(x1,y2) << "\n";
+  auto router = std::make_unique<handler::router>();
+
+  router->http_get("/", &handler::web_app::link);
+  router->http_get("/frontend/", &handler::web_app::redirect);
+  router->http_get(R"(/:path(.*)\.:ext(.*))", restinio::path2regex::options_t{}.strict(true),
+                   handler::serve_files::from_disk{server_root_dir});
+
+  handler::user::fill::list(*router, db);
+  handler::user::fill::user(*router, db);
+
+  return router;
 }
 
+template <bool enable_tls>
+struct server_traits : restinio::traits_t<restinio::asio_timer_manager_t, server_logger, handler::router> {};
+template <>
+struct server_traits<true> : restinio::tls_traits_t<restinio::asio_timer_manager_t, server_logger, handler::router> {};
 
+template <typename traits>
+restinio::run_on_thread_pool_settings_t<traits> make_settings(const app_args_t &args) {
+  return restinio::on_thread_pool<traits>(args.pool_size)
+      .address(args.address)
+      .port(args.port)
+      .read_next_http_message_timelimit(10s)
+      .write_http_response_timelimit(1s)
+      .handle_request_timeout(1s);
+}
 
-//! [simd-test]
+namespace ssl = restinio::asio_ns::ssl;
+int main(int argc, char const *argv[]) {
+  const auto args = app_args_t::parse(argc, argv);
+  if (!args.has_value()) return static_cast<int>(args.error());
 
-// #include "test.hpp"
-// #include <eve/module/math.hpp>
+  // Setup the empty database
+  user_database db;
 
-// TTS_CASE("Check scalar to_polar")
-// {
-//   TTS_ULP_EQUAL(rho(1,1)  , std::sqrt(2.f), 0.5);
-//   TTS_ULP_EQUAL(theta(1,1), 0.78539819f   , 0.5);
-// };
+  const auto enable_tls = args->certs_dir.has_value();
 
-// TTS_CASE("Check SIMD to_polar")
-// {
-//   eve::wide<float> x{1}, y{1};
+  try {
+    if (enable_tls) {
+      ssl::context tls_context{ssl::context::tls};
+      tls_context.set_options(ssl::context::default_workarounds | ssl::context::no_sslv2 | ssl::context::no_sslv3 |
+                              ssl::context::no_tlsv1 | ssl::context::no_tlsv1_1 | ssl::context::single_dh_use);
 
-//   TTS_ULP_EQUAL(rho(x,y)  , eve::sqrt_2(eve::as(x))       , 0.5);
-//   TTS_ULP_EQUAL(theta(x,y), eve::wide<float>{0.78539819f} , 0.5);
-// };
+      const auto &certs_dir = args->certs_dir.value();
+      tls_context.use_certificate_chain_file(certs_dir + "/server.pem");
+      tls_context.use_private_key_file(certs_dir + "/key.pem", ssl::context::pem);
+      tls_context.use_tmp_dh_file(certs_dir + "/dh2048.pem");
+
+      auto pool_settings = make_settings<server_traits<true>>(args.value());
+      pool_settings.tls_context(std::move(tls_context)).request_handler(server_handler(args->root_dir, db));
+      restinio::run(std::move(pool_settings));
+    } else {
+      auto pool_settings = make_settings<server_traits<false>>(args.value());
+      pool_settings.request_handler(server_handler(args->root_dir, db));
+      restinio::run(std::move(pool_settings));
+    }
+
+  } catch (const std::exception &ex) {
+    std::cerr << "Error: " << ex.what() << std::endl;
+    return 1;
+  }
+
+  return 0;
+}
