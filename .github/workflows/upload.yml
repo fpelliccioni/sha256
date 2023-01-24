@@ -44,12 +44,12 @@ jobs:
           github-ref: ${{ github.ref }}
           unique-alt-id: ${{ github.sha }}
 
-  backend-build-image:
+  build-docker-image:
     runs-on: ubuntu-latest
     outputs:
-      name: docker.pkg.github.com/${{ github.repository }}/backend-build-alpine:${{ steps.version.outputs.version }}
+      name: docker.pkg.github.com/${{ github.repository }}/build-alpine:${{ steps.version.outputs.version }}
     env:
-      name: docker.pkg.github.com/${{ github.repository }}/backend-build-alpine
+      name: docker.pkg.github.com/${{ github.repository }}/build-alpine
     steps:
       - uses: actions/checkout@v3
       - id: version
@@ -70,11 +70,11 @@ jobs:
         run: docker push ${{ env.name }}:${{ steps.version.outputs.version }}
 
   calc-deps:
-    needs: [backend-build-image, check]
+    needs: [build-docker-image, check]
     if: needs.check.outputs.permitted == 'true'
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.backend-build-image.outputs.name }}
+      image: ${{ needs.build-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -90,29 +90,29 @@ jobs:
       - name: conan login
         run: conan user -p ${{ secrets.CONAN_PASSWORD_TAO }} -r $CONAN_REMOTE ${{ secrets.CONAN_LOGIN_USERNAME_TAO }}
       - name: build order
-        working-directory: backend
+        working-directory: .
         run: |
           conan lock create conanfile.py --version $BUILD_VERSION --lockfile=conan.lock --lockfile-out=build/conan.lock -pr alpine-3-12 -s build_type=Release
           conan lock build-order build/conan.lock --json=build_order.json
       - uses: actions/upload-artifact@v3
         with:
           name: conan-lockfile
-          path: backend/build/conan.lock
+          path: build/conan.lock
       - id: set-matrix
         name: output
         run: |
-          echo $(cat backend/build_order.json)
-          cd backend
+          echo $(cat build_order.json)
+          # cd backend
           python3 build-order-to-matrix.py
           MATRIX=$(cat matrix.json)
           echo "${MATRIX}"
           echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
 
   build-deps:
-    needs: [backend-build-image, calc-deps]
+    needs: [build-docker-image, calc-deps]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.backend-build-image.outputs.name }}
+      image: ${{ needs.build-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -138,10 +138,10 @@ jobs:
       - run: exit 0
 
   alpine-backend:
-    needs: [backend-build-image, build-deps]
+    needs: [build-docker-image, build-deps]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.backend-build-image.outputs.name }}
+      image: ${{ needs.build-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
@@ -154,15 +154,15 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: conan-lockfile
-          path: backend/build/
+          path: build/
       - uses: ./.github/actions/setup-conan
       - run: conan user -p ${{ secrets.CONAN_PASSWORD_TAO }} -r $CONAN_REMOTE ${{ secrets.CONAN_LOGIN_USERNAME_TAO }}
       - uses: ./.github/actions/replace-version
         with:
           new-version: ${{ env.BUILD_VERSION }}
-          target-file: backend/include/um/user_management.hpp
+          target-file: include/um/user_management.hpp
       - name: build
-        working-directory: backend
+        working-directory: .
         run: |
           git config --global --add safe.directory /__w/sha256/sha256
           conan create conanfile.py $BUILD_VERSION@ --lockfile=build/conan.lock
@@ -170,15 +170,15 @@ jobs:
         run: conan upload "*" --all -r $CONAN_REMOTE -c
 
   backend-image:
-    needs: [setup, backend-build-image, alpine-backend]
+    needs: [setup, build-docker-image, alpine-backend]
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.backend-build-image.outputs.name }}
+      image: ${{ needs.build-docker-image.outputs.name }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ github.token }}
     env:
-      name: docker.pkg.github.com/${{ github.repository }}/sha256-backend:${{ needs.setup.outputs.build-version }}
+      name: docker.pkg.github.com/${{ github.repository }}/sha256:${{ needs.setup.outputs.build-version }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
@@ -193,7 +193,7 @@ jobs:
           name: conan-lockfile
       - name: download
         run: |
-          conan install $NAME/$BUILD_VERSION@ -r $CONAN_REMOTE -l conan.lock -if backend
+          conan install $NAME/$BUILD_VERSION@ -r $CONAN_REMOTE -l conan.lock -if sha256
 
       # - name: build
       #   run: |
@@ -216,7 +216,7 @@ jobs:
       #     docker tag ${{ env.name }} $DOCKER_REGISTRY/$NAME-backend:$BUILD_VERSION
       #     docker push $DOCKER_REGISTRY/$NAME-backend:$BUILD_VERSION
 
-  backend:
+  build:
     needs: check
     strategy:
       fail-fast: true
@@ -243,7 +243,7 @@ jobs:
         with:
           languages: 'cpp'
       - name: build
-        working-directory: backend
+        working-directory: .
         # This should not be logged in to conan remote since we are building for ubuntu the binaries are available in CCI
         run: |
           conan remote disable $CONAN_REMOTE
