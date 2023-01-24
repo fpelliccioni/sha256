@@ -252,7 +252,8 @@ jobs:
         run: |
           conan remote disable $CONAN_REMOTE
           conan profile show default
-          conan lock create conanfile.py --version $BUILD_VERSION --lockfile=conan.lock --lockfile-out=build/conan.lock -o sha256:logging=${{ matrix.logging }}
+          # conan lock create conanfile.py --version $BUILD_VERSION --lockfile=conan.lock --lockfile-out=build/conan.lock -o sha256:logging=${{ matrix.logging }}
+          conan lock create conanfile.py --version $BUILD_VERSION --lockfile=conan.lock --lockfile-out=build/conan.lock
           conan create conanfile.py $BUILD_VERSION@ --lockfile=build/conan.lock
       - uses: github/codeql-action/analyze@v2
       - name: upload
