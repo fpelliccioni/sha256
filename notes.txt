@@ -20,3 +20,7 @@ Agner Fog's Vector Class Library
 
 Google Highway
     https://github.com/google/highway
+
+
+Apache Arrow, ver todos los bindings (ver el de Go)
+    https://github.com/apache/arrow
